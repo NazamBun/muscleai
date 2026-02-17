@@ -2,6 +2,7 @@ package com.nazam.muscleai.domain.analyzer
 
 import android.graphics.Bitmap
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.math.min
 
 actual class BodyPhotoAnalyzerFactory {
@@ -15,38 +16,42 @@ private class AndroidBodyPhotoAnalyzer : BodyPhotoAnalyzer {
 
         val bitmap = photo.bitmap
 
-        if (bitmap.width < 300 || bitmap.height < 300) {
+        if (bitmap.width < 200 || bitmap.height < 200) {
             return PhotoAnalysisResult(
                 isValid = false,
-                message = "Photo trop petite. Rapproche-toi un peu."
+                message = "Photo trop petite."
             )
         }
 
-        val brightness = calculateBrightness(bitmap)
+        val brightness = averageBrightness(bitmap)
 
-        if (brightness < 60) {
-            return PhotoAnalysisResult(
-                isValid = false,
-                message = "Photo trop sombre. Mets-toi dans un endroit plus lumineux."
-            )
+        if (brightness < 40) {
+            return PhotoAnalysisResult(false, "Photo trop sombre.")
+        }
+
+        if (brightness > 220) {
+            return PhotoAnalysisResult(false, "Photo trop lumineuse.")
+        }
+
+        val sharpness = sharpnessScore(bitmap)
+
+        if (sharpness < 15) {
+            return PhotoAnalysisResult(false, "Photo floue. Reste immobile.")
         }
 
         return PhotoAnalysisResult(
             isValid = true,
-            message = "Photo correcte. Analyse validée."
+            message = "Photo OK. Analyse prête."
         )
     }
 
-    private fun calculateBrightness(bitmap: Bitmap): Int {
-        val width = bitmap.width
-        val height = bitmap.height
+    private fun averageBrightness(bitmap: Bitmap): Int {
         var total = 0L
         var count = 0
 
-        val step = min(width, height) / 50 + 1
-
-        for (x in 0 until width step step) {
-            for (y in 0 until height step step) {
+        val step = 20
+        for (y in 0 until bitmap.height step step) {
+            for (x in 0 until bitmap.width step step) {
                 val pixel = bitmap.getPixel(x, y)
                 val r = (pixel shr 16) and 0xff
                 val g = (pixel shr 8) and 0xff
@@ -57,5 +62,32 @@ private class AndroidBodyPhotoAnalyzer : BodyPhotoAnalyzer {
         }
 
         return (total / count).toInt()
+    }
+
+    private fun sharpnessScore(bitmap: Bitmap): Int {
+        var totalDiff = 0L
+        var count = 0
+
+        val step = 20
+        for (y in 0 until bitmap.height - step step step) {
+            for (x in 0 until bitmap.width - step step step) {
+
+                val p1 = bitmap.getPixel(x, y)
+                val p2 = bitmap.getPixel(x + step, y + step)
+
+                val gray1 = ((p1 shr 16) and 0xff +
+                        (p1 shr 8) and 0xff +
+                        (p1 and 0xff)) / 3
+
+                val gray2 = ((p2 shr 16) and 0xff +
+                        (p2 shr 8) and 0xff +
+                        (p2 and 0xff)) / 3
+
+                totalDiff += abs(gray1 - gray2)
+                count++
+            }
+        }
+
+        return (totalDiff / count).toInt()
     }
 }
