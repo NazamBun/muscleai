@@ -19,6 +19,8 @@ import muscleai.composeapp.generated.resources.Res
 import muscleai.composeapp.generated.resources.analyze_cta
 import muscleai.composeapp.generated.resources.analyze_description
 import muscleai.composeapp.generated.resources.analyze_title
+import muscleai.composeapp.generated.resources.restart
+import muscleai.composeapp.generated.resources.result_title
 
 private enum class Step { PHOTO, QUESTIONS, RESULT }
 
@@ -69,9 +71,9 @@ fun AnalyzeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Résultat (stub)")
+            Text(stringResource(Res.string.result_title))
             Button(onClick = { step = Step.PHOTO }) {
-                Text("Recommencer")
+                Text(stringResource(Res.string.restart))
             }
         }
     }

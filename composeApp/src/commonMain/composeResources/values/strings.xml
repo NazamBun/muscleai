@@ -1,7 +1,25 @@
 <resources>
+    <!-- Analyze -->
     <string name="analyze_title">Analyse du corps</string>
-    <string name="analyze_description">
-        Prends une photo, puis je te poserai des questions pour créer un plan adapté.
-    </string>
+    <string name="analyze_description">Prends une photo, puis je te poserai des questions pour créer un plan adapté.</string>
     <string name="analyze_cta">Prendre une photo</string>
+
+    <!-- Questions -->
+    <string name="q_age">Âge</string>
+    <string name="q_height_cm">Taille (cm)</string>
+    <string name="q_weight_kg">Poids (kg)</string>
+    <string name="q_days_per_week">Jours / semaine</string>
+    <string name="q_has_dumbbells">Tu as des haltères ?</string>
+    <string name="q_submit">Valider</string>
+
+    <!-- Result -->
+    <string name="result_title">Résultat</string>
+    <string name="restart">Recommencer</string>
+
+    <!-- Errors -->
+    <string name="error_fill_all_fields">Remplis tous les champs avec des chiffres.</string>
+    <string name="error_age_range">Âge incorrect (5 à 100).</string>
+    <string name="error_height_range">Taille incorrecte (80 à 250 cm).</string>
+    <string name="error_weight_range">Poids incorrect (20 à 250 kg).</string>
+    <string name="error_days_range">Jours incorrect (1 à 7).</string>
 </resources>
