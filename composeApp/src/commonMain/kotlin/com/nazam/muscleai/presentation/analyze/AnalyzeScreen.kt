@@ -7,62 +7,72 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 
+import com.nazam.muscleai.presentation.analyze.questions.QuestionsScreen
 import muscleai.composeapp.generated.resources.Res
 import muscleai.composeapp.generated.resources.analyze_cta
 import muscleai.composeapp.generated.resources.analyze_description
 import muscleai.composeapp.generated.resources.analyze_title
+
+private enum class Step { PHOTO, QUESTIONS, RESULT }
 
 @Composable
 fun AnalyzeScreen(
     vm: AnalyzeViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsState()
+    var step by remember { mutableStateOf(Step.PHOTO) }
 
-    // ✅ stringResource est appelé dans le Composable (OK)
     val title = stringResource(Res.string.analyze_title)
     val description = stringResource(Res.string.analyze_description)
     val buttonText = stringResource(Res.string.analyze_cta)
 
-    // ✅ Ici on passe juste des Strings (OK)
     LaunchedEffect(title, description, buttonText) {
-        vm.initTexts(
-            title = title,
-            description = description,
-            buttonText = buttonText
-        )
+        vm.initTexts(title, description, buttonText)
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(state.title)
-        Text(state.description)
-
-        Button(
-            onClick = vm::onTakePhotoClicked,
-            enabled = !state.isLoading
+    when (step) {
+        Step.PHOTO -> Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(state.buttonText)
+            Text(state.title)
+            Text(state.description)
+
+            Button(
+                onClick = {
+                    vm.onTakePhotoClicked()
+                    step = Step.QUESTIONS
+                },
+                enabled = !state.isLoading
+            ) {
+                Text(state.buttonText)
+            }
+
+            if (state.isLoading) CircularProgressIndicator()
+            if (state.statusText.isNotBlank()) Text(state.statusText)
         }
 
-        if (state.isLoading) {
-            CircularProgressIndicator()
-        }
+        Step.QUESTIONS -> QuestionsScreen(
+            onSubmit = { step = Step.RESULT }
+        )
 
-        if (state.statusText.isNotBlank()) {
-            Text(state.statusText)
+        Step.RESULT -> Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Résultat (stub)")
+            Button(onClick = { step = Step.PHOTO }) {
+                Text("Recommencer")
+            }
         }
     }
 }
