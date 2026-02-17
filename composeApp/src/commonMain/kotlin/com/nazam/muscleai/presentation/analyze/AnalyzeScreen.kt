@@ -5,8 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,10 +26,21 @@ import muscleai.composeapp.generated.resources.analyze_title
 fun AnalyzeScreen(
     vm: AnalyzeViewModel = viewModel()
 ) {
-    val state = vm.uiState(
-        title = stringResource(Res.string.analyze_title),
-        description = stringResource(Res.string.analyze_description)
-    )
+    val state by vm.uiState.collectAsState()
+
+    // ✅ stringResource est appelé dans le Composable (OK)
+    val title = stringResource(Res.string.analyze_title)
+    val description = stringResource(Res.string.analyze_description)
+    val buttonText = stringResource(Res.string.analyze_cta)
+
+    // ✅ Ici on passe juste des Strings (OK)
+    LaunchedEffect(title, description, buttonText) {
+        vm.initTexts(
+            title = title,
+            description = description,
+            buttonText = buttonText
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -35,8 +50,19 @@ fun AnalyzeScreen(
         Text(state.title)
         Text(state.description)
 
-        Button(onClick = { }) {
-            Text(stringResource(Res.string.analyze_cta))
+        Button(
+            onClick = vm::onTakePhotoClicked,
+            enabled = !state.isLoading
+        ) {
+            Text(state.buttonText)
+        }
+
+        if (state.isLoading) {
+            CircularProgressIndicator()
+        }
+
+        if (state.statusText.isNotBlank()) {
+            Text(state.statusText)
         }
     }
 }
