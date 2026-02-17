@@ -1,0 +1,7 @@
+<resources>
+    <string name="analyze_title">Analyse du corps</string>
+    <string name="analyze_description">
+        Prends une photo, puis je te poserai des questions pour créer un plan adapté.
+    </string>
+    <string name="analyze_cta">Prendre une photo</string>
+</resources>
