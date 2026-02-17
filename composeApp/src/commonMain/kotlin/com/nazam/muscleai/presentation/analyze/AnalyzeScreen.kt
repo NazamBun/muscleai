@@ -1,12 +1,7 @@
 package com.nazam.muscleai.presentation.analyze
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,12 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
 
 import com.nazam.muscleai.presentation.analyze.questions.QuestionsScreen
-import muscleai.composeapp.generated.resources.Res
-import muscleai.composeapp.generated.resources.analyze_cta
-import muscleai.composeapp.generated.resources.analyze_description
-import muscleai.composeapp.generated.resources.analyze_title
-import muscleai.composeapp.generated.resources.restart
-import muscleai.composeapp.generated.resources.result_title
+import muscleai.composeapp.generated.resources.*
 
 private enum class Step { PHOTO, QUESTIONS, RESULT }
 
@@ -29,6 +19,8 @@ fun AnalyzeScreen(
     vm: AnalyzeViewModel = viewModel()
 ) {
     val state by vm.uiState.collectAsState()
+    val resultState by vm.resultState.collectAsState()
+
     var step by remember { mutableStateOf(Step.PHOTO) }
 
     val title = stringResource(Res.string.analyze_title)
@@ -52,8 +44,7 @@ fun AnalyzeScreen(
                 onClick = {
                     vm.onTakePhotoClicked()
                     step = Step.QUESTIONS
-                },
-                enabled = !state.isLoading
+                }
             ) {
                 Text(state.buttonText)
             }
@@ -63,15 +54,21 @@ fun AnalyzeScreen(
         }
 
         Step.QUESTIONS -> QuestionsScreen(
-            onSubmit = { step = Step.RESULT }
+            onSubmit = { profile ->
+                vm.generatePlan(profile)
+                step = Step.RESULT
+            }
         )
 
         Step.RESULT -> Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(stringResource(Res.string.result_title))
+            Text(resultState.planTitle)
+            resultState.exercises.forEach { Text("- $it") }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Button(onClick = { step = Step.PHOTO }) {
                 Text(stringResource(Res.string.restart))
             }

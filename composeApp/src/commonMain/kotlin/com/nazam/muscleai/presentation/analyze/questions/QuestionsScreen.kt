@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.nazam.muscleai.domain.profile.UserProfile
 import org.jetbrains.compose.resources.stringResource
 
 import muscleai.composeapp.generated.resources.Res
@@ -29,7 +30,7 @@ import muscleai.composeapp.generated.resources.q_weight_kg
 
 @Composable
 fun QuestionsScreen(
-    onSubmit: (QuestionsUiState) -> Unit
+    onSubmit: (UserProfile) -> Unit
 ) {
     var state by remember { mutableStateOf(QuestionsUiState()) }
 
@@ -88,7 +89,7 @@ fun QuestionsScreen(
         Button(
             onClick = {
                 when (val result = QuestionsValidator.validate(state)) {
-                    is ValidationResult.Ok -> onSubmit(state)
+                    is ValidationResult.Ok -> onSubmit(result.profile)
                     is ValidationResult.Error -> state = state.copy(error = errorText(result.errorKey))
                 }
             }
