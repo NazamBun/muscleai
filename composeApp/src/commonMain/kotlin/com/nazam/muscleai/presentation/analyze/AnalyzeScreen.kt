@@ -8,11 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.jetbrains.compose.resources.stringResource
-
+import com.nazam.muscleai.presentation.camera.CameraCapture
 import com.nazam.muscleai.presentation.analyze.questions.QuestionsScreen
 import muscleai.composeapp.generated.resources.*
 
-private enum class Step { PHOTO, QUESTIONS, RESULT }
+private enum class Step { PHOTO, CAMERA, QUESTIONS, RESULT }
 
 @Composable
 fun AnalyzeScreen(
@@ -20,7 +20,6 @@ fun AnalyzeScreen(
 ) {
     val state by vm.uiState.collectAsState()
     val resultState by vm.resultState.collectAsState()
-
     var step by remember { mutableStateOf(Step.PHOTO) }
 
     val title = stringResource(Res.string.analyze_title)
@@ -40,18 +39,21 @@ fun AnalyzeScreen(
             Text(state.title)
             Text(state.description)
 
-            Button(
-                onClick = {
-                    vm.onTakePhotoClicked()
-                    step = Step.QUESTIONS
-                }
-            ) {
-                Text(state.buttonText)
+            Button(onClick = { step = Step.CAMERA }) {
+                Text(buttonText)
             }
 
             if (state.isLoading) CircularProgressIndicator()
             if (state.statusText.isNotBlank()) Text(state.statusText)
         }
+
+        Step.CAMERA -> CameraCapture(
+            onPhoto = {
+                vm.onPhotoCaptured(it)
+                step = Step.QUESTIONS
+            },
+            onCancel = { step = Step.PHOTO }
+        )
 
         Step.QUESTIONS -> QuestionsScreen(
             onSubmit = { profile ->
