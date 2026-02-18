@@ -9,6 +9,7 @@ import com.nazam.muscleai.analyzer.AndroidAppContext
 import com.nazam.muscleai.analyzer.PhotoQuality
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 actual class BodyPhotoAnalyzerFactory {
     actual fun create(): BodyPhotoAnalyzer = AndroidPoseAnalyzer()
@@ -28,7 +29,7 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
     private val landmarker: PoseLandmarker by lazy { createLandmarker() }
 
     override suspend fun analyze(photo: PhotoInput): PhotoAnalysisResult {
-        delay(150)
+        delay(120)
 
         val bitmap = photo.bitmap
 
@@ -42,18 +43,40 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
         val mpImage = BitmapImageBuilder(bitmap).build()
         val result = landmarker.detect(mpImage)
 
-        val score = armVisibilityScore(result) // 0..100
+        val arm = bestArm(result) ?: return PhotoAnalysisResult(
+            isValid = false,
+            message = "Je ne vois pas le corps. Mets-toi face à la caméra.",
+            score = 0
+        )
 
-        return if (score >= 60) {
-            PhotoAnalysisResult(true, "Bras détecté ✅", score)
+        val score = (arm.avgVis * 100f).roundToInt().coerceIn(0, 100)
+
+        val tips = buildTips(arm)
+
+        val ok = score >= 60
+        val message = if (ok) {
+            if (tips.isBlank()) "Bras bien cadré ✅"
+            else "Bras détecté ✅ $tips"
         } else {
-            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Cadre mieux ton bras.", score)
+            "Je ne vois pas bien le bras. $tips"
         }
+
+        return PhotoAnalysisResult(ok, message, score)
     }
 
-    private fun armVisibilityScore(result: PoseLandmarkerResult): Int {
+    private data class ArmData(
+        val avgVis: Float,
+        val shoulderX: Float,
+        val shoulderY: Float,
+        val elbowX: Float,
+        val elbowY: Float,
+        val wristX: Float,
+        val wristY: Float
+    )
+
+    private fun bestArm(result: PoseLandmarkerResult): ArmData? {
         val poses = result.landmarks()
-        if (poses.isEmpty()) return 0
+        if (poses.isEmpty()) return null
         val lm = poses[0]
 
         fun vis(i: Int): Float {
@@ -61,11 +84,57 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
             return if (opt.isPresent) opt.get() else 0f
         }
 
-        val left = (vis(LS) + vis(LE) + vis(LW)) / 3f
-        val right = (vis(RS) + vis(RE) + vis(RW)) / 3f
+        fun x(i: Int): Float = lm[i].x()
+        fun y(i: Int): Float = lm[i].y()
 
-        val best = maxOf(left, right) // 0..1
-        return (best * 100f).roundToInt().coerceIn(0, 100)
+        val leftVis = (vis(LS) + vis(LE) + vis(LW)) / 3f
+        val rightVis = (vis(RS) + vis(RE) + vis(RW)) / 3f
+
+        return if (leftVis >= rightVis && leftVis > 0f) {
+            ArmData(
+                avgVis = leftVis,
+                shoulderX = x(LS), shoulderY = y(LS),
+                elbowX = x(LE), elbowY = y(LE),
+                wristX = x(LW), wristY = y(LW)
+            )
+        } else if (rightVis > 0f) {
+            ArmData(
+                avgVis = rightVis,
+                shoulderX = x(RS), shoulderY = y(RS),
+                elbowX = x(RE), elbowY = y(RE),
+                wristX = x(RW), wristY = y(RW)
+            )
+        } else null
+    }
+
+    private fun buildTips(arm: ArmData): String {
+        // Coordonnées normalisées : x [0..1], y [0..1] (y vers le bas)
+        val wristX = arm.wristX
+        val wristY = arm.wristY
+
+        val tips = mutableListOf<String>()
+
+        // Gauche / droite
+        when {
+            wristX < 0.30f -> tips += "Décale ton bras vers la droite."
+            wristX > 0.70f -> tips += "Décale ton bras vers la gauche."
+        }
+
+        // Haut / bas
+        when {
+            wristY < 0.25f -> tips += "Baisse un peu ton bras."
+            wristY > 0.75f -> tips += "Monte un peu ton bras."
+        }
+
+        // Trop loin (bras trop petit à l’écran) : distance épaule→poignet
+        val dx = arm.wristX - arm.shoulderX
+        val dy = arm.wristY - arm.shoulderY
+        val dist = sqrt(dx * dx + dy * dy)
+
+        if (dist < 0.18f) tips += "Rapproche-toi un peu."
+
+        // Si rien à dire
+        return tips.joinToString(" ")
     }
 
     private fun createLandmarker(): PoseLandmarker {
