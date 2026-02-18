@@ -44,6 +44,8 @@ fun AnalyzeScreen(
             }
 
             if (state.isLoading) CircularProgressIndicator()
+
+            if (state.scoreText.isNotBlank()) Text(state.scoreText)
             if (state.statusText.isNotBlank()) Text(state.statusText)
         }
 

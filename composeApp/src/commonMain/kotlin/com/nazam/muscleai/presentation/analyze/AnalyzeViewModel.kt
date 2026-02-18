@@ -34,11 +34,15 @@ class AnalyzeViewModel(
 
     fun onPhotoCaptured(photo: PhotoInput) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, statusText = "")
+            _uiState.value = _uiState.value.copy(isLoading = true, statusText = "", scoreText = "")
             val result = analyzer.analyze(photo)
+
+            val scoreText = result.score?.let { "Score: $it/100" }.orEmpty()
+
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                statusText = result.message
+                statusText = result.message,
+                scoreText = scoreText
             )
         }
     }

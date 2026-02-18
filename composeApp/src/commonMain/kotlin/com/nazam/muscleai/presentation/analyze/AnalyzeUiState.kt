@@ -5,6 +5,7 @@ data class AnalyzeUiState(
     val description: String,
     val buttonText: String,
     val statusText: String,
+    val scoreText: String,
     val isLoading: Boolean
 ) {
     companion object {
@@ -13,6 +14,7 @@ data class AnalyzeUiState(
             description = description,
             buttonText = buttonText,
             statusText = "",
+            scoreText = "",
             isLoading = false
         )
     }

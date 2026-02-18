@@ -2,12 +2,13 @@ package com.nazam.muscleai.domain.analyzer
 
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
-import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.nazam.muscleai.analyzer.AndroidAppContext
 import com.nazam.muscleai.analyzer.PhotoQuality
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 actual class BodyPhotoAnalyzerFactory {
     actual fun create(): BodyPhotoAnalyzer = AndroidPoseAnalyzer()
@@ -15,14 +16,13 @@ actual class BodyPhotoAnalyzerFactory {
 
 private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
 
-    // Indices MediaPipe Pose (constants stables)
     private companion object {
-        const val LEFT_SHOULDER = 11
-        const val RIGHT_SHOULDER = 12
-        const val LEFT_ELBOW = 13
-        const val RIGHT_ELBOW = 14
-        const val LEFT_WRIST = 15
-        const val RIGHT_WRIST = 16
+        const val LS = 11
+        const val RS = 12
+        const val LE = 13
+        const val RE = 14
+        const val LW = 15
+        const val RW = 16
     }
 
     private val landmarker: PoseLandmarker by lazy { createLandmarker() }
@@ -32,49 +32,40 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
 
         val bitmap = photo.bitmap
 
-        // 1) Qualité photo (rapide)
         when {
-            PhotoQuality.isTooSmall(bitmap) -> return PhotoAnalysisResult(false, "Photo trop petite.")
-            PhotoQuality.isTooDark(bitmap) -> return PhotoAnalysisResult(false, "Photo trop sombre.")
-            PhotoQuality.isTooBright(bitmap) -> return PhotoAnalysisResult(false, "Photo trop lumineuse.")
-            PhotoQuality.isTooBlurry(bitmap) -> return PhotoAnalysisResult(false, "Photo floue. Reste immobile.")
+            PhotoQuality.isTooSmall(bitmap) -> return PhotoAnalysisResult(false, "Photo trop petite.", 0)
+            PhotoQuality.isTooDark(bitmap) -> return PhotoAnalysisResult(false, "Photo trop sombre.", 0)
+            PhotoQuality.isTooBright(bitmap) -> return PhotoAnalysisResult(false, "Photo trop lumineuse.", 0)
+            PhotoQuality.isTooBlurry(bitmap) -> return PhotoAnalysisResult(false, "Photo floue. Reste immobile.", 0)
         }
 
-        // 2) IA Pose (MediaPipe)
         val mpImage = BitmapImageBuilder(bitmap).build()
         val result = landmarker.detect(mpImage)
 
-        val armOk = hasArmLandmarks(result)
+        val score = armVisibilityScore(result) // 0..100
 
-        return if (armOk) {
-            PhotoAnalysisResult(true, "Bras détecté ✅")
+        return if (score >= 60) {
+            PhotoAnalysisResult(true, "Bras détecté ✅", score)
         } else {
-            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Cadre mieux ton bras.")
+            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Cadre mieux ton bras.", score)
         }
     }
 
-    private fun hasArmLandmarks(result: PoseLandmarkerResult): Boolean {
+    private fun armVisibilityScore(result: PoseLandmarkerResult): Int {
         val poses = result.landmarks()
-        if (poses.isEmpty()) return false
-
+        if (poses.isEmpty()) return 0
         val lm = poses[0]
 
-        fun visibilityAt(index: Int): Float {
-            val opt = lm[index].visibility()
-            return if (opt.isPresent) opt.get() else 1f
+        fun vis(i: Int): Float {
+            val opt = lm[i].visibility()
+            return if (opt.isPresent) opt.get() else 0f
         }
 
-        val leftOk =
-            visibilityAt(LEFT_SHOULDER) > 0.5f &&
-            visibilityAt(LEFT_ELBOW) > 0.5f &&
-            visibilityAt(LEFT_WRIST) > 0.5f
+        val left = (vis(LS) + vis(LE) + vis(LW)) / 3f
+        val right = (vis(RS) + vis(RE) + vis(RW)) / 3f
 
-        val rightOk =
-            visibilityAt(RIGHT_SHOULDER) > 0.5f &&
-            visibilityAt(RIGHT_ELBOW) > 0.5f &&
-            visibilityAt(RIGHT_WRIST) > 0.5f
-
-        return leftOk || rightOk
+        val best = maxOf(left, right) // 0..1
+        return (best * 100f).roundToInt().coerceIn(0, 100)
     }
 
     private fun createLandmarker(): PoseLandmarker {
