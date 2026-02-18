@@ -3,7 +3,6 @@ package com.nazam.muscleai.domain.analyzer
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
-import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker.PoseLandmark
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.nazam.muscleai.analyzer.AndroidAppContext
@@ -15,6 +14,16 @@ actual class BodyPhotoAnalyzerFactory {
 }
 
 private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
+
+    // Indices MediaPipe Pose (constants stables)
+    private companion object {
+        const val LEFT_SHOULDER = 11
+        const val RIGHT_SHOULDER = 12
+        const val LEFT_ELBOW = 13
+        const val RIGHT_ELBOW = 14
+        const val LEFT_WRIST = 15
+        const val RIGHT_WRIST = 16
+    }
 
     private val landmarker: PoseLandmarker by lazy { createLandmarker() }
 
@@ -40,7 +49,7 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
         return if (armOk) {
             PhotoAnalysisResult(true, "Bras détecté ✅")
         } else {
-            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Rapproche-toi et cadre ton bras.")
+            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Cadre mieux ton bras.")
         }
     }
 
@@ -49,21 +58,21 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
         if (poses.isEmpty()) return false
 
         val lm = poses[0]
-        fun v(i: Int): Float {
-            val opt = lm[i].visibility()
+
+        fun visibilityAt(index: Int): Float {
+            val opt = lm[index].visibility()
             return if (opt.isPresent) opt.get() else 1f
         }
 
-        val ls = PoseLandmark.LEFT_SHOULDER.ordinal
-        val le = PoseLandmark.LEFT_ELBOW.ordinal
-        val lw = PoseLandmark.LEFT_WRIST.ordinal
+        val leftOk =
+            visibilityAt(LEFT_SHOULDER) > 0.5f &&
+            visibilityAt(LEFT_ELBOW) > 0.5f &&
+            visibilityAt(LEFT_WRIST) > 0.5f
 
-        val rs = PoseLandmark.RIGHT_SHOULDER.ordinal
-        val re = PoseLandmark.RIGHT_ELBOW.ordinal
-        val rw = PoseLandmark.RIGHT_WRIST.ordinal
-
-        val leftOk = v(ls) > 0.5f && v(le) > 0.5f && v(lw) > 0.5f
-        val rightOk = v(rs) > 0.5f && v(re) > 0.5f && v(rw) > 0.5f
+        val rightOk =
+            visibilityAt(RIGHT_SHOULDER) > 0.5f &&
+            visibilityAt(RIGHT_ELBOW) > 0.5f &&
+            visibilityAt(RIGHT_WRIST) > 0.5f
 
         return leftOk || rightOk
     }
