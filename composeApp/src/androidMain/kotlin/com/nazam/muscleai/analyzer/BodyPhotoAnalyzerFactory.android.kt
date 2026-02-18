@@ -1,93 +1,85 @@
 package com.nazam.muscleai.domain.analyzer
 
-import android.graphics.Bitmap
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker.PoseLandmark
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.nazam.muscleai.analyzer.AndroidAppContext
+import com.nazam.muscleai.analyzer.PhotoQuality
 import kotlinx.coroutines.delay
-import kotlin.math.abs
-import kotlin.math.min
 
 actual class BodyPhotoAnalyzerFactory {
-    actual fun create(): BodyPhotoAnalyzer = AndroidBodyPhotoAnalyzer()
+    actual fun create(): BodyPhotoAnalyzer = AndroidPoseAnalyzer()
 }
 
-private class AndroidBodyPhotoAnalyzer : BodyPhotoAnalyzer {
+private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
+
+    private val landmarker: PoseLandmarker by lazy { createLandmarker() }
 
     override suspend fun analyze(photo: PhotoInput): PhotoAnalysisResult {
-        delay(400)
+        delay(150)
 
         val bitmap = photo.bitmap
 
-        if (bitmap.width < 200 || bitmap.height < 200) {
-            return PhotoAnalysisResult(
-                isValid = false,
-                message = "Photo trop petite."
-            )
+        // 1) Qualité photo (rapide)
+        when {
+            PhotoQuality.isTooSmall(bitmap) -> return PhotoAnalysisResult(false, "Photo trop petite.")
+            PhotoQuality.isTooDark(bitmap) -> return PhotoAnalysisResult(false, "Photo trop sombre.")
+            PhotoQuality.isTooBright(bitmap) -> return PhotoAnalysisResult(false, "Photo trop lumineuse.")
+            PhotoQuality.isTooBlurry(bitmap) -> return PhotoAnalysisResult(false, "Photo floue. Reste immobile.")
         }
 
-        val brightness = averageBrightness(bitmap)
+        // 2) IA Pose (MediaPipe)
+        val mpImage = BitmapImageBuilder(bitmap).build()
+        val result = landmarker.detect(mpImage)
 
-        if (brightness < 40) {
-            return PhotoAnalysisResult(false, "Photo trop sombre.")
+        val armOk = hasArmLandmarks(result)
+
+        return if (armOk) {
+            PhotoAnalysisResult(true, "Bras détecté ✅")
+        } else {
+            PhotoAnalysisResult(false, "Je ne vois pas bien le bras. Rapproche-toi et cadre ton bras.")
         }
-
-        if (brightness > 220) {
-            return PhotoAnalysisResult(false, "Photo trop lumineuse.")
-        }
-
-        val sharpness = sharpnessScore(bitmap)
-
-        if (sharpness < 15) {
-            return PhotoAnalysisResult(false, "Photo floue. Reste immobile.")
-        }
-
-        return PhotoAnalysisResult(
-            isValid = true,
-            message = "Photo OK. Analyse prête."
-        )
     }
 
-    private fun averageBrightness(bitmap: Bitmap): Int {
-        var total = 0L
-        var count = 0
+    private fun hasArmLandmarks(result: PoseLandmarkerResult): Boolean {
+        val poses = result.landmarks()
+        if (poses.isEmpty()) return false
 
-        val step = 20
-        for (y in 0 until bitmap.height step step) {
-            for (x in 0 until bitmap.width step step) {
-                val pixel = bitmap.getPixel(x, y)
-                val r = (pixel shr 16) and 0xff
-                val g = (pixel shr 8) and 0xff
-                val b = pixel and 0xff
-                total += (r + g + b) / 3
-                count++
-            }
+        val lm = poses[0]
+        fun v(i: Int): Float {
+            val opt = lm[i].visibility()
+            return if (opt.isPresent) opt.get() else 1f
         }
 
-        return (total / count).toInt()
+        val ls = PoseLandmark.LEFT_SHOULDER.ordinal
+        val le = PoseLandmark.LEFT_ELBOW.ordinal
+        val lw = PoseLandmark.LEFT_WRIST.ordinal
+
+        val rs = PoseLandmark.RIGHT_SHOULDER.ordinal
+        val re = PoseLandmark.RIGHT_ELBOW.ordinal
+        val rw = PoseLandmark.RIGHT_WRIST.ordinal
+
+        val leftOk = v(ls) > 0.5f && v(le) > 0.5f && v(lw) > 0.5f
+        val rightOk = v(rs) > 0.5f && v(re) > 0.5f && v(rw) > 0.5f
+
+        return leftOk || rightOk
     }
 
-    private fun sharpnessScore(bitmap: Bitmap): Int {
-        var totalDiff = 0L
-        var count = 0
+    private fun createLandmarker(): PoseLandmarker {
+        val context = AndroidAppContext.get()
 
-        val step = 20
-        for (y in 0 until bitmap.height - step step step) {
-            for (x in 0 until bitmap.width - step step step) {
+        val base = BaseOptions.builder()
+            .setModelAssetPath("pose_landmarker_lite.task")
+            .build()
 
-                val p1 = bitmap.getPixel(x, y)
-                val p2 = bitmap.getPixel(x + step, y + step)
+        val options = PoseLandmarker.PoseLandmarkerOptions.builder()
+            .setBaseOptions(base)
+            .setRunningMode(RunningMode.IMAGE)
+            .build()
 
-                val gray1 = ((p1 shr 16) and 0xff +
-                        (p1 shr 8) and 0xff +
-                        (p1 and 0xff)) / 3
-
-                val gray2 = ((p2 shr 16) and 0xff +
-                        (p2 shr 8) and 0xff +
-                        (p2 and 0xff)) / 3
-
-                totalDiff += abs(gray1 - gray2)
-                count++
-            }
-        }
-
-        return (totalDiff / count).toInt()
+        return PoseLandmarker.createFromOptions(context, options)
     }
 }

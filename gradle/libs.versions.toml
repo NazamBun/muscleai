@@ -15,6 +15,7 @@ kotlin = "2.3.0"
 material3 = "1.10.0-alpha05"
 coroutines = "1.10.2"
 camerax = "1.4.2"
+mediapipeTasks = "0.10.32"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -38,6 +39,7 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+mediapipe-tasks-vision = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipeTasks" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

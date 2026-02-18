@@ -29,6 +29,10 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.camera.camera2)
+            implementation(libs.androidx.camera.lifecycle)
+            implementation(libs.androidx.camera.view)
+            implementation(libs.mediapipe.tasks.vision)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -40,9 +44,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.androidx.camera.camera2)
-            implementation(libs.androidx.camera.lifecycle)
-            implementation(libs.androidx.camera.view)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
