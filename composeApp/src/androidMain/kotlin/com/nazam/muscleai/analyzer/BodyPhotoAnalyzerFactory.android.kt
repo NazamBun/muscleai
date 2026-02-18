@@ -134,7 +134,7 @@ private class AndroidPoseAnalyzer : BodyPhotoAnalyzer {
         if (dist < 0.18f) tips += "Rapproche-toi un peu."
 
         // Si rien à dire
-        return tips.joinToString(" ")
+        return tips.take(3).joinToString(" ")
     }
 
     private fun createLandmarker(): PoseLandmarker {
